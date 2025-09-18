@@ -70,6 +70,7 @@ fn ingress_backend(service_name: impl ToString) -> IngressBackend {
 }
 fn ingress_for_redirect(ctx: &Arc<Context>, redirect: &Redirect) -> Ingress {
     let redirect_ingress = redirect.spec.ingress.clone();
+    let ingress_name = ingress_name_for_redirect(redirect);
 
     // cannot own across namespaces
     // let oref = redirect.controller_owner_ref(&()).unwrap();
@@ -81,7 +82,7 @@ fn ingress_for_redirect(ctx: &Arc<Context>, redirect: &Redirect) -> Ingress {
                 redirect_ingress
                     .tls
                     .secret_name
-                    .unwrap_or_else(|| format!("{}-tls-certs", redirect.name_any())),
+                    .unwrap_or_else(|| format!("{}-tls-certs", ingress_name)),
             ),
         }])
     } else {
@@ -108,7 +109,7 @@ fn ingress_for_redirect(ctx: &Arc<Context>, redirect: &Redirect) -> Ingress {
 
     Ingress {
         metadata: ObjectMeta {
-            name: Some(ingress_name_for_redirect(redirect)),
+            name: Some(ingress_name),
             namespace: Some(ctx.self_namespace.clone()),
 
             // cannot own across namespaces
