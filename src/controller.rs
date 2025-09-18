@@ -114,8 +114,8 @@ fn ingress_for_redirect(ctx: &Arc<Context>, redirect: &Redirect) -> Ingress {
 
             // cannot own across namespaces
             // owner_references: Some(vec![oref]),
-            annotations: redirect_ingress.labels,
-            labels: redirect_ingress.annotations,
+            annotations: redirect_ingress.annotations,
+            labels: redirect_ingress.labels,
             ..ObjectMeta::default()
         },
         spec: Some(IngressSpec {
