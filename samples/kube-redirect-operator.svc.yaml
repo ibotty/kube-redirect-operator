@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: kube-redirect-operator
+    app.kubernetes.io/component: kube-redirect-operator
+    app.kubernetes.io/instance: kube-redirect-operator
+  name: kube-redirect-operator
+spec:
+  ports:
+  - name: 8080-tcp
+    port: 8080
+  selector:
+    deployment: kube-redirect-operator

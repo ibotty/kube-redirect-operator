@@ -5,6 +5,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+#[allow(unused)]
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("Failed to create Ingress: {0}")]
@@ -16,6 +18,7 @@ pub enum Error {
 }
 
 impl Error {
+    #[allow(unused)]
     pub(crate) fn metric_label(&self) -> String {
         format!("{self:?}").to_lowercase()
     }

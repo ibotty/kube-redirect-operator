@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    image.openshift.io/triggers: '[{"from":{"kind":"ImageStreamTag","name":"kube-redirect-operator:latest"},"fieldPath":"spec.template.spec.containers[?(@.name==\"kube-redirect-operator\")].image"}]'
+  labels:
+    app: kube-redirect-operator
+    app.kubernetes.io/component: kube-redirect-operator
+    app.kubernetes.io/instance: kube-redirect-operator
+  name: kube-redirect-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      deployment: kube-redirect-operator
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: kube-redirect-operator
+        app.kubernetes.io/component: kube-redirect-operator
+        app.kubernetes.io/instance: kube-redirect-operator
+        deployment: kube-redirect-operator
+    spec:
+      containers:
+      - env:
+        envFrom:
+        image: quay.io/ibotty/kube-redirect-operator:latest
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: 9880
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: s3-download-proxy
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        - containerPort: 9880
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: 9880
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        startupProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: 9880
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+      restartPolicy: Always
+      serviceAccountName: kube-redirect-operator

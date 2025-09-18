@@ -11,6 +11,10 @@ keywords = ["kubernetes", "http"]
 categories = ["virtualization"]
 default-run = "controller"
 
+[features]
+default = []
+yaml = ["serde_yaml"]
+
 [dependencies]
 kube = { version = "2", features = ["runtime", "derive"] }
 k8s-openapi = { version = "0.26.0", features = ["latest"] }
@@ -26,7 +30,7 @@ serde_json = "1.0.143"
 schemars = "1"
 thiserror = "2.0.16"
 prometheus-client = "0.24.0"
-serde_yaml = "0.9.34"
+serde_yaml = { version="0.9.34", optional = true }
 
 [[bin]]
 doc = false
@@ -37,3 +41,10 @@ path = "src/main.rs"
 doc = false
 name = "crdgen"
 path = "src/crdgen.rs"
+required-features = ["yaml"]
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+#panic = "abort" # .6MB reduction, 10%
