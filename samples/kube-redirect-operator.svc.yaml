@@ -6,6 +6,7 @@ metadata:
     app.kubernetes.io/component: kube-redirect-operator
     app.kubernetes.io/instance: kube-redirect-operator
   name: kube-redirect-operator
+  namespace: redirect-operator
 spec:
   ports:
   - name: 8080-tcp
