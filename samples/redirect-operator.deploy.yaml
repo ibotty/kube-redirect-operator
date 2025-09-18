@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    image.openshift.io/triggers: '[{"from":{"kind":"ImageStreamTag","name":"redirect-operator:latest"},"fieldPath":"spec.template.spec.containers[?(@.name==\"redirect-operator\")].image"}]'
+  labels:
+    app: redirect-operator
+    app.kubernetes.io/component: redirect-operator
+    app.kubernetes.io/instance: redirect-operator
+  name: redirect-operator
+  namespace: redirect-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      deployment: redirect-operator
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: redirect-operator
+        app.kubernetes.io/component: redirect-operator
+        app.kubernetes.io/instance: redirect-operator
+        deployment: redirect-operator
+    spec:
+      containers:
+      - env:
+        envFrom:
+        image: quay.io/ibotty/redirect-operator:latest
+        name: redirect-operator
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        - containerPort: 9880
+          protocol: TCP
+        # livenessProbe:
+        #   failureThreshold: 3
+        #   httpGet:
+        #     path: /health
+        #     port: 9880
+        #     scheme: HTTP
+        #   periodSeconds: 10
+        #   successThreshold: 1
+        #   timeoutSeconds: 1
+        # readinessProbe:
+        #   failureThreshold: 3
+        #   httpGet:
+        #     path: /health
+        #     port: 9880
+        #     scheme: HTTP
+        #   periodSeconds: 10
+        #   successThreshold: 1
+        #   timeoutSeconds: 1
+        # startupProbe:
+        #   failureThreshold: 3
+        #   httpGet:
+        #     path: /health
+        #     port: 9880
+        #     scheme: HTTP
+        #   periodSeconds: 10
+        #   successThreshold: 1
+        #   timeoutSeconds: 1
+      restartPolicy: Always
+      serviceAccountName: redirect-operator

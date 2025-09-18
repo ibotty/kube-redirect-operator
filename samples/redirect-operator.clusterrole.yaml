@@ -1,0 +1,16 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: redirect-operator
+rules:
+- apiGroups:
+  - kube.ibotty.net
+  resources:
+  - redirects
+  - redirects/status
+  verbs:
+  # - create
+  - get
+  - list
+  - watch
+  - patch

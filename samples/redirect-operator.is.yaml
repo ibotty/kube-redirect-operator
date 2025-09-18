@@ -2,10 +2,10 @@ apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
   labels:
-    app: kube-redirect-operator
-    app.kubernetes.io/component: kube-redirect-operator
-    app.kubernetes.io/instance: kube-redirect-operator
-  name: kube-redirect-operator
+    app: redirect-operator
+    app.kubernetes.io/component: redirect-operator
+    app.kubernetes.io/instance: redirect-operator
+  name: redirect-operator
   namespace: redirect-operator
 spec:
   lookupPolicy:
