@@ -31,6 +31,7 @@ schemars = "1"
 thiserror = "2.0.16"
 prometheus-client = "0.24.0"
 serde_yaml = { version="0.9.34", optional = true }
+kube-coordinate = { git = "https://github.com/ibotty/kube-coordinate", branch = "main" }
 
 [[bin]]
 doc = false

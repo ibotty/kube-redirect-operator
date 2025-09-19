@@ -1,7 +1,10 @@
-use std::{env, sync::Arc, time::Duration};
+use std::env;
+use std::sync::Arc;
+use std::time::Duration;
 
 use crate::{metrics::Metrics, types::*};
 
+use anyhow::Context as _;
 use futures::StreamExt;
 use k8s_openapi::api::networking::v1::{
     HTTPIngressPath, HTTPIngressRuleValue, Ingress, IngressBackend, IngressRule,
@@ -12,8 +15,9 @@ use kube::{
     api::{ObjectMeta, Patch, PatchParams},
     runtime::{Config, Controller, controller::Action, finalizer, reflector::Store, watcher},
 };
+use kube_coordinate::{LeaderElector, LeaderElectorHandle, LeaderState};
 use serde_json::json;
-use tokio::task::JoinHandle;
+use tokio::{sync::watch::Receiver, task::JoinHandle};
 use tracing::{info, instrument, warn};
 
 pub const REDIRECT_KUBE_SLUG: &str = "redirect.kube.ibotty.net";
@@ -28,15 +32,34 @@ pub struct Context {
     pub api: Api<Redirect>,
     // pub diagnostics: Arc<RwLock<Diagnostics>>,
     pub metrics: Arc<Metrics>,
+
+    pub leader_state: Receiver<LeaderState>,
+}
+
+pub async fn setup_leader_election(client: Client) -> anyhow::Result<LeaderElectorHandle> {
+    let self_namespace = env::var("POD_NAMESPACE").unwrap_or("redirect-operator".to_string());
+    let self_pod_name = env::var("POD_NAME").unwrap_or("redirect-operator".to_string());
+    let self_service_name =
+        env::var("REDIRECT_SERVICE_NAME").unwrap_or("redirect-operator".to_string());
+
+    let config = kube_coordinate::Config {
+        name: REDIRECT_KUBE_SLUG.to_string(),
+        namespace: self_namespace,
+        identity: self_pod_name,
+        manager: self_service_name,
+        ..Default::default()
+    };
+    LeaderElector::spawn(config, client.clone()).context("cannot spawn leader election")
 }
 
 impl Context {
-    pub async fn from_env() -> anyhow::Result<Self> {
-        let self_namespace = env::var("SELF_NAMESPACE").unwrap_or("redirect-operator".to_string());
+    pub async fn from_env_with_leader_state(
+        client: Client,
+        leader_state: Receiver<LeaderState>,
+    ) -> anyhow::Result<Self> {
+        let self_namespace = env::var("POD_NAMESPACE").unwrap_or("redirect-operator".to_string());
         let self_service_name =
-            env::var("SELF_SERVICE_NAME").unwrap_or("redirect-operator".to_string());
-
-        let client = Client::try_default().await?;
+            env::var("REDIRECT_SERVICE_NAME").unwrap_or("redirect-operator".to_string());
 
         let api = match env::var("WATCH_NAMESPACE") {
             Ok(ns) => Api::namespaced(client.clone(), &ns),
@@ -46,12 +69,23 @@ impl Context {
 
         let metrics = Default::default();
 
+        // let lease = Arc::new(LeaseLock::new(
+        //     client.clone(),
+        //     &self_namespace,
+        //     LeaseLockParams {
+        //         lease_name: self_service_name.clone(),
+        //         holder_id: self_pod_name,
+        //         lease_ttl: Duration::from_secs(15),
+        //     },
+        // ));
+
         Ok(Self {
             client,
             api,
             metrics,
             self_namespace,
             self_service_name,
+            leader_state,
         })
     }
 }
@@ -141,6 +175,11 @@ pub async fn reconcile(
     redirect: Arc<Redirect>,
     ctx: Arc<Context>,
 ) -> Result<Action, finalizer::Error<Error>> {
+    if !ctx.leader_state.borrow().is_leader() {
+        info!("not acting because we are not leader");
+        return Ok(Action::requeue(Duration::from_secs(300)));
+    }
+
     let ns = redirect.metadata.namespace.as_deref().unwrap();
     let api: Api<Redirect> = Api::namespaced(ctx.client.clone(), ns);
     finalizer(
@@ -212,8 +251,11 @@ pub async fn apply(redirect: Arc<Redirect>, ctx: Arc<Context>) -> Result<Action,
     Ok(Action::requeue(Duration::from_secs(300)))
 }
 
-pub async fn get_controller() -> anyhow::Result<(Store<Redirect>, Arc<Metrics>, JoinHandle<()>)> {
-    let ctx = Context::from_env().await?;
+pub async fn get_controller(
+    client: Client,
+    leader_state: Receiver<LeaderState>,
+) -> anyhow::Result<(Store<Redirect>, Arc<Metrics>, JoinHandle<()>)> {
+    let ctx = Context::from_env_with_leader_state(client, leader_state).await?;
     let controller_config = Config::default().concurrency(2);
 
     let controller = Controller::new(ctx.api.clone(), watcher::Config::default())

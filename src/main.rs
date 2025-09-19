@@ -53,7 +53,10 @@ async fn main() -> anyhow::Result<()> {
         .with(logger)
         .init();
 
-    let (reader, metrics, controller) = controller::get_controller().await?;
+    let kube_client = kube::Client::try_default().await?;
+    let leader_handle = controller::setup_leader_election(kube_client.clone()).await?;
+    let (reader, metrics, controller) =
+        controller::get_controller(kube_client, leader_handle.state()).await?;
 
     let app = Router::new()
         .route("/", get(redirect))
@@ -72,6 +75,8 @@ async fn main() -> anyhow::Result<()> {
     let (_, r1, r2) = tokio::join!(controller, webserver, metrics_server);
     r1?;
     r2?;
+
+    leader_handle.shutdown().await?;
 
     Ok(())
 }

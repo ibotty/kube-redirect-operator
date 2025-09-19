@@ -26,6 +26,18 @@ spec:
     spec:
       containers:
       - env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: SERVICE_NAME
+          value: redirect-operator
         envFrom:
         image: quay.io/ibotty/redirect-operator:latest
         name: redirect-operator
