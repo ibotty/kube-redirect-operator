@@ -10,7 +10,7 @@ metadata:
   name: redirect-operator
   namespace: redirect-operator
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       deployment: redirect-operator
