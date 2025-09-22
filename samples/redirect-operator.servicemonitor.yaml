@@ -1,0 +1,20 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app.kubernetes.io/instance: redirect-operator
+    app.kubernetes.io/component: redirect-operator
+  name: redirect-operator
+  namespace: redirect-operator
+spec:
+  endpoints:
+  - interval: 30s
+    port: metrics
+    scrapeTimeout: 25s
+  namespaceSelector:
+    matchNames:
+    - redirect-operator
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: redirect-operator
+      app.kubernetes.io/component: redirect-operator

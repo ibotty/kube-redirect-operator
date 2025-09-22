@@ -11,5 +11,7 @@ spec:
   ports:
   - name: 8080-tcp
     port: 8080
+  - name: metrics
+    port: 9880
   selector:
     deployment: redirect-operator
