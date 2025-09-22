@@ -66,6 +66,8 @@ async fn main() -> anyhow::Result<()> {
     let webserver = axum::serve(listener, app).with_graceful_shutdown(shutdown_signal());
 
     let metrics_app = Router::new()
+        .route("/ready", get(get_healthz))
+        .route("/healthz", get(get_healthz))
         .route("/metrics", get(get_metrics))
         .with_state(metrics);
     let metrics_listener = tokio::net::TcpListener::bind("0.0.0.0:9880").await?;
@@ -126,4 +128,9 @@ async fn get_metrics(State(metrics): State<Arc<Metrics>>) -> Response {
         )
         .body(Body::from(buffer))
         .unwrap()
+}
+
+// this should check the reconcile loop, etc.
+async fn get_healthz() -> Response {
+    "OK\n".into_response()
 }
