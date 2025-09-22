@@ -17,7 +17,7 @@ pub struct Metrics {
 
 impl Default for Metrics {
     fn default() -> Self {
-        let mut registry = Registry::with_prefix("redirect_controller_reconcile");
+        let mut registry = Registry::with_prefix("redirect_operator_reconcile");
         let reconcile = ReconcileMetrics::default().register(&mut registry);
         Self {
             registry: Arc::new(registry),
