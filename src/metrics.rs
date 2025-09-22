@@ -1,5 +1,6 @@
 use std::{sync::Arc, time::Instant};
 
+use axum_extra::headers::Host;
 use kube::{ResourceExt, runtime::finalizer};
 use prometheus_client::{
     encoding::EncodeLabelSet,
@@ -12,17 +13,55 @@ use crate::types::{Error, Redirect};
 #[derive(Clone)]
 pub struct Metrics {
     pub reconcile: ReconcileMetrics,
+    pub http: HttpMetrics,
     pub registry: Arc<Registry>,
 }
 
 impl Default for Metrics {
     fn default() -> Self {
-        let mut registry = Registry::with_prefix("redirect_operator_reconcile");
+        let mut registry = Registry::with_prefix("redirect_operator");
         let reconcile = ReconcileMetrics::default().register(&mut registry);
+        let http = HttpMetrics::default().register(&mut registry);
         Self {
             registry: Arc::new(registry),
             reconcile,
+            http,
         }
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct HttpMetrics {
+    pub requests: Family<RequestLabels, Counter>,
+    pub failures: Family<RequestLabels, Counter>,
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelSet)]
+pub struct RequestLabels {
+    pub host: String,
+}
+
+impl HttpMetrics {
+    pub fn set_failure(&self, host: &Host) {
+        self.failures
+            .get_or_create(&RequestLabels {
+                host: host.to_string(),
+            })
+            .inc();
+    }
+
+    pub fn set_request(&self, host: &Host) {
+        self.requests
+            .get_or_create(&RequestLabels {
+                host: host.to_string(),
+            })
+            .inc();
+    }
+
+    fn register(self, r: &mut Registry) -> Self {
+        r.register("http_requests", "Count of requests", self.requests.clone());
+        r.register("http_failures", "Count of failures", self.failures.clone());
+        self
     }
 }
 
@@ -77,13 +116,17 @@ impl ReconcileMetrics {
 
     fn register(self, r: &mut Registry) -> Self {
         r.register_with_unit(
-            "duration",
+            "reconcile_duration",
             "reconcile duration",
             Unit::Seconds,
             self.duration.clone(),
         );
-        r.register("failures", "reconciliation errors", self.failures.clone());
-        r.register("runs", "reconciliations", self.runs.clone());
+        r.register(
+            "reconcile_failures",
+            "reconciliation errors",
+            self.failures.clone(),
+        );
+        r.register("reconcile_runs", "reconciliations", self.runs.clone());
         self
     }
 }

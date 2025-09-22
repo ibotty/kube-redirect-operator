@@ -21,7 +21,11 @@ use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitEx
 
 use crate::metrics::Metrics;
 
-type Cache = reflector::Store<types::Redirect>;
+#[derive(Clone)]
+struct AppState {
+    store: reflector::Store<types::Redirect>,
+    metrics: Arc<Metrics>,
+}
 
 async fn shutdown_signal() {
     let ctrl_c = async {
@@ -58,10 +62,15 @@ async fn main() -> anyhow::Result<()> {
     let (reader, metrics, controller) =
         controller::get_controller(kube_client, leader_handle.state()).await?;
 
+    let app_state = AppState {
+        store: reader,
+        metrics: metrics.clone(),
+    };
+
     let app = Router::new()
         .route("/", get(redirect))
         .route("/{*path}", get(redirect))
-        .with_state(reader);
+        .with_state(app_state);
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
     let webserver = axum::serve(listener, app).with_graceful_shutdown(shutdown_signal());
 
@@ -96,10 +105,10 @@ impl IntoResponse for NotFoundError {
 async fn redirect(
     TypedHeader(host): TypedHeader<Host>,
     path: Option<Path<String>>,
-    State(store): State<Cache>,
+    State(app_state): State<AppState>,
 ) -> Result<Response, NotFoundError> {
     let p = |redirect: &types::Redirect| redirect.spec.hosts.contains(&host.to_string());
-    if let Some(redirect) = store.find(p) {
+    if let Some(redirect) = app_state.store.find(p) {
         let to = &redirect.spec.to;
         let uri = if to.include_request_uri {
             let path = path.map(|p| p.0).unwrap_or("".to_string());
@@ -109,9 +118,11 @@ async fn redirect(
         };
 
         info!("redirecting {} to {}", host, uri);
+        app_state.metrics.http.set_request(&host);
         Ok(Redirect::permanent(&uri).into_response())
     } else {
         error!("no redirect found for {}", host);
+        app_state.metrics.http.set_failure(&host);
         Err(NotFoundError {})
     }
 }
