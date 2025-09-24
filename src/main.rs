@@ -107,7 +107,9 @@ async fn redirect(
     path: Option<Path<String>>,
     State(app_state): State<AppState>,
 ) -> Result<Response, NotFoundError> {
-    let p = |redirect: &types::Redirect| redirect.spec.hosts.contains(&host.to_string());
+    let host = host.to_string();
+    let host = host.trim_end_matches('.');
+    let p = |redirect: &types::Redirect| redirect.spec.hosts.contains(host);
     if let Some(redirect) = app_state.store.find(p) {
         let to = &redirect.spec.to;
         let uri = if to.include_request_uri {
@@ -118,11 +120,11 @@ async fn redirect(
         };
 
         info!("redirecting {} to {}", host, uri);
-        app_state.metrics.http.set_request(&host);
+        app_state.metrics.http.set_request(host);
         Ok(Redirect::permanent(&uri).into_response())
     } else {
         error!("no redirect found for {}", host);
-        app_state.metrics.http.set_failure(&host);
+        app_state.metrics.http.set_failure(host);
         Err(NotFoundError {})
     }
 }

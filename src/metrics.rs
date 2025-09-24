@@ -1,6 +1,5 @@
 use std::{sync::Arc, time::Instant};
 
-use axum_extra::headers::Host;
 use kube::{ResourceExt, runtime::finalizer};
 use prometheus_client::{
     encoding::EncodeLabelSet,
@@ -42,7 +41,7 @@ pub struct RequestLabels {
 }
 
 impl HttpMetrics {
-    pub fn set_failure(&self, host: &Host) {
+    pub fn set_failure(&self, host: &str) {
         self.failures
             .get_or_create(&RequestLabels {
                 host: host.to_string(),
@@ -50,7 +49,7 @@ impl HttpMetrics {
             .inc();
     }
 
-    pub fn set_request(&self, host: &Host) {
+    pub fn set_request(&self, host: &str) {
         self.requests
             .get_or_create(&RequestLabels {
                 host: host.to_string(),
